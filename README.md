@@ -84,12 +84,35 @@ Each architecture has specific hyperparameter ranges:
 - Dropout regularization (12.5%)
 
 ## Project Structure
-├── Models/             # Model architectures
-├── Utils/              # Utility functions
-├── Data/               # Dataset storage
+Main scripts 
+```plaintext
+├── Models/                          # Model architectures
+│   ├── constructTCN.m              # TCN model implementation
+│   ├── constructRNN.m              # RNN variants implementation
+│   ├── constructCNN.m              # CNN implementation
+│   └── constructTransformer.m      # Transformer implementation
+│
+├── Utils/                          # Utility functions
+│   ├── gridSearch.m                # Hyperparameter search
+│   ├── performanceMetrics.m        # Evaluation metrics
+│   └── dataPreprocessing.m         # Data preparation
+│
+├── Data/                           # Dataset storage
 │   ├── ds002778_prepared/
+│   │   ├── Train/
+│   │   └── Test/
 │   └── ds004584_prepared/
-└── Results/            # Results storage
+│       ├── Train/
+│       └── Test/
+│
+├── Results/                        # Results storage
+│   ├── ds002778/
+│   └── ds004584/
+│
+├── hyperParameterSearch_ds002778.mlx   # Main script for model training and evaluation
+├── dataPreparationScript_ds002778.mlx  # Data preprocessing and preparation script
+└── README.md
+```
 
 ## Usage
 
@@ -107,7 +130,7 @@ tcnResults = gridSearch(@constructTCN, XSearchTrainPrepared, YSearchTrainPrepare
 
 ## Dependencies
 
-MATLAB R2023b or later
-Deep Learning Toolbox
-Signal Processing Toolbox
-Parallel Computing Toolbox (optional, for faster training)
+* MATLAB R2023b or later
+* Deep Learning Toolbox
+* Signal Processing Toolbox
+* Parallel Computing Toolbox (optional, for faster training)
