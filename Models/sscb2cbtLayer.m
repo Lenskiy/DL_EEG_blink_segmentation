@@ -2,7 +2,6 @@ classdef sscb2cbtLayer < nnet.layer.Layer ...
         & nnet.layer.Formattable 
 
     properties
-        % Output size
         OutputSize
     end
     
@@ -12,14 +11,9 @@ classdef sscb2cbtLayer < nnet.layer.Layer ...
                 NameValueArgs.Name = 'ConvertSpatialToTime';
             end
             
-            name = NameValueArgs.Name;
-
-            layer.Name = name;
-
+            layer.Name = NameValueArgs.Name;
             layer.Description = "Convert Spatial To Time";
-           
             layer.Type = "Convert Spatial To Time";
-
         end
 
         function layer = initialize(layer, ~)
@@ -27,30 +21,39 @@ classdef sscb2cbtLayer < nnet.layer.Layer ...
         end
 
         function Z = predict(~, X)
+            % Get dimensions
             idx = finddim(X, "S");
-            for k = 1:length(idx)
-                numSamples(k) = X.size(idx(k));
-            end
-            idx = finddim(X, "C");
-            numChannels = X.size(idx);
-            idx = finddim(X, "B");
-            if(isnan(X.size(idx)))
-                numBatches = 1;
-            else
-                numBatches = X.size(idx); 
+            numSpatialDims = length(idx);
+            spatialSizes = zeros(1, numSpatialDims);
+            for k = 1:numSpatialDims
+                spatialSizes(k) = X.size(idx(k));
             end
             
-            switch size(numSamples, 2)
-            case 1
-                X = X.reshape([numSamples, numChannels, numBatches]);
-                X = dlarray(X,'UUU');
-                Z = X.permute([2 3 1]);
-                Z = dlarray(Z,'CBT');
-            case 2
-                %X = X.reshape([numSamples, numChannels, numBatches]);
-                X = dlarray(X,'UUUU');
-                Z = X.permute([2 3 4 1]);
-                Z = dlarray(Z,'SCBT');
+            idx = finddim(X, "C");
+            numChannels = X.size(idx);
+            
+            idx = finddim(X, "B");
+            numBatches = 1;
+            if ~isnan(X.size(idx))
+                numBatches = X.size(idx);
+            end
+            
+            % Process based on number of spatial dimensions
+            if numSpatialDims == 1
+                % Single spatial dimension case
+                Z = dlarray(X, 'CBT');
+            elseif numSpatialDims == 2
+                if any(spatialSizes == 1)
+                    % Case where one spatial dimension is 1
+                    % Reshape to remove the unit dimension
+                    effectiveSize = max(spatialSizes);
+                    Z = dlarray(reshape(X, [numChannels, numBatches, effectiveSize]), 'CBT');
+                else
+                    % Both spatial dimensions are significant
+                    Z = dlarray(X, 'SCBT');
+                end
+            else
+                error('Unexpected number of spatial dimensions');
             end
         end
     end

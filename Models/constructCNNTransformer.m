@@ -5,18 +5,18 @@ function dlnet = constructCNNTransformer(parameters)
     
     keyDim = parameters.embedDim / parameters.numHeads;
     
-    % Initial layers with format conversion
+    % Initial layers with format conversion for CNN
     layers = [sequenceInputLayer(parameters.numChannels, Name="sequenceInputLayer", MinLength=128), 
              cbt2sscbLayer(Name="t2s")];
     lgraph = layerGraph(layers);
     
     outputName = layers(end).Name;
     
-    % Add convolutional layers
-    for k = 1:parameters.numBlocks
+    % CNN feature extraction blocks
+    for k = 1:parameters.numCNNBlocks
         if(k == 1)
             layers = [
-                convolution2dLayer([parameters.filterSize 1], parameters.numFilters, Padding="same", Name="conv_" + k)
+                convolution2dLayer([parameters.filterSize 1], parameters.embedDim, Padding="same", Name="conv_" + k)
                 layerNormalizationLayer(Name="ln_" + k)
                 swishLayer(Name="swish_" + k)
                 spatialDropoutLayer(parameters.dropoutFactor, Name="dropout_" + k)
@@ -24,7 +24,7 @@ function dlnet = constructCNNTransformer(parameters)
         else
             layers = [
                 groupedConvolution2dLayer([parameters.filterSize, 1], 1, 'channel-wise', Padding="same", Name="conv_" + k)
-                convolution2dLayer(1, parameters.numFilters, Name="conv_fc_" + k)
+                convolution2dLayer(1, parameters.embedDim, Name="conv_fc_" + k)
                 layerNormalizationLayer(Name="ln_" + k)
                 swishLayer(Name="swish_" + k)
                 spatialDropoutLayer(parameters.dropoutFactor, Name="dropout_" + k)
@@ -35,20 +35,17 @@ function dlnet = constructCNNTransformer(parameters)
         outputName = "dropout_" + k;
     end
     
-    % Convert format and prepare for transformer
+    % Convert back to temporal format for transformer
     layers = [
         sscb2cbtLayer(Name="s2t")
-        fullyConnectedLayer(parameters.embedDim, Name="projection")
-        positionEmbeddingLayer(parameters.embedDim, 384, Name="posEmb")
     ];
-
     
     lgraph = addLayers(lgraph, layers);
     lgraph = connectLayers(lgraph, outputName, "s2t");
-    outputName = "posEmb";
+    outputName = "s2t";
     
     % Add transformer blocks
-    for k = 1:parameters.numAttnBlocks
+    for k = 1:parameters.numTransformerBlocks
         attentionBlock = [
             layerNormalizationLayer(Name="preAttnNorm_" + k)
             selfAttentionLayer(parameters.numHeads, keyDim, ...
