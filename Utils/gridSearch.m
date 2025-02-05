@@ -89,9 +89,9 @@ function [net, performance_report, numberOfWeights] = trainAndTestNetworks(train
     if exist('dlValX', 'var') && exist('dlValY', 'var')
         options.ValidationData = {dlValX, dlValY};
     end
-    
+
     % Rest of the code remains the same...
-    [net, ~] = trainnet(dlX, dlY, dlnet, "index-crossentropy", options);
+    [net, ~] = trainnet(dlX, dlY, dlnet, @sequenceCrossEntropyLoss, options);
     
     % Format test data and predict
     [dlTestX, ~] = formatData(testSetX, testSetY);
@@ -147,15 +147,25 @@ function [dlX, dlY] = formatData(X, Y)
         formattedX(:,i,:) = X{i};
     end
     
-    % Format labels - convert categorical to indices
-    formattedY = zeros(1, numSequences, seqLength);
+    % Format labels
+    numClasses = numel(categories(Y{1}));
+    formattedY = zeros(numClasses, numSequences, seqLength);
     for i = 1:numSequences
-        formattedY(1,i,:) = double(Y{i}); % Categorical to numeric indices
+        catArray = Y{i};
+        oneHot = onehotencode(catArray', 2);
+        formattedY(:,i,:) = permute(oneHot, [2 3 1]);
     end
     
     % Convert to dlarrays
     dlX = dlarray(formattedX, 'CBT');
     dlY = dlarray(formattedY, 'CBT');
+end
+
+function loss = sequenceCrossEntropyLoss(predictions, targets)
+    % predictions are already probabilities from softmax layer
+    loss = -sum(targets .* log(predictions + eps), 'all');
+    numElements = size(targets, 2) * size(targets, 3);
+    loss = loss / numElements;
 end
 %% OLD functions
 % function [net, performance_, numberOfWeights]   = trainAndTestNetworks(trainSetX, trainSetY, trainXPID, testSetX, testSetY, testXPID, net, stepLenght, options)
