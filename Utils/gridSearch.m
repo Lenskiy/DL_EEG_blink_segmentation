@@ -6,8 +6,15 @@ function results = gridSearch(model, trainSetX, trainSetY, trainXPID, testSetX, 
 
     po = [];    % variable to parallel pool
     for k = length(listOfParamters):-1:1       % Filter size search
-        dlnet = model(listOfParamters(k));
-        results(k) =  struct('parameters', listOfParamters(k), 'performance', [], 'numberOfWeights', []);
+        try
+            dlnet = model(listOfParamters(k));
+           
+        catch
+            warning("Wrong parameters");
+            disp(listOfParamters);
+            continue;
+        end
+         results(k) =  struct('parameters', listOfParamters(k), 'performance', [], 'numberOfWeights', []);
         performance = zeros(1,numTrials);
         tic
         if(options.ExecutionEnvironment == "gpu")
