@@ -5,46 +5,36 @@ function dlnet = constructCNNTransformer(parameters)
     
     keyDim = parameters.embedDim / parameters.numHeads;
     
-    % Initial layers with format conversion for CNN
-    layers = [sequenceInputLayer(parameters.numChannels, Name="sequenceInputLayer", MinLength=128), 
-             cbt2sscbLayer(Name="t2s")];
+    layers  = [sequenceInputLayer(parameters.numChannels, Name="sequenceInputLayer", MinLength=128)
+               cbt2sscbLayer(Name="t2s")]; 
     lgraph = layerGraph(layers);
     
     outputName = layers(end).Name;
     
-    % CNN feature extraction blocks
     for k = 1:parameters.numCNNBlocks
-        if(k == 1)
-            layers = [
-                convolution2dLayer([parameters.filterSize 1], parameters.embedDim, Padding="same", Name="conv_" + k)
-                layerNormalizationLayer(Name="ln_" + k)
-                swishLayer(Name="swish_" + k)
-                spatialDropoutLayer(parameters.dropoutFactor, Name="dropout_" + k)
+        layers = [
+            convolution2dLayer([parameters.filterSize 1], parameters.embedDim, Padding="same", Name="conv_" + k)
+            layerNormalizationLayer(Name="ln_" + k)
+            swishLayer(Name="swish_" + k)
+            spatialDropoutLayer(parameters.dropoutFactor, Name="dropout_" + k)
             ];
-        else
-            layers = [
-                groupedConvolution2dLayer([parameters.filterSize, 1], 1, 'channel-wise', Padding="same", Name="conv_" + k)
-                convolution2dLayer(1, parameters.embedDim, Name="conv_fc_" + k)
-                layerNormalizationLayer(Name="ln_" + k)
-                swishLayer(Name="swish_" + k)
-                spatialDropoutLayer(parameters.dropoutFactor, Name="dropout_" + k)
-            ];
-        end
+
         lgraph = addLayers(lgraph, layers);
         lgraph = connectLayers(lgraph, outputName, "conv_" + k);
         outputName = "dropout_" + k;
     end
     
-    % Convert back to temporal format for transformer
     layers = [
         sscb2cbtLayer(Name="s2t")
-    ];
+        flattenLayer(Name="fl")
+        ];
     
-    lgraph = addLayers(lgraph, layers);
+    lgraph = addLayers(lgraph,layers);
     lgraph = connectLayers(lgraph, outputName, "s2t");
-    outputName = "s2t";
+    outputName = "fl";
+
     
-    % Add transformer blocks
+    % Add transformer blocks (no format conversion needed)
     for k = 1:parameters.numTransformerBlocks
         attentionBlock = [
             layerNormalizationLayer(Name="preAttnNorm_" + k)
